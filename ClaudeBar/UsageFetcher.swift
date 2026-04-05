@@ -449,10 +449,10 @@ enum UsageParser {
         guard let range = line.range(of: "Resets", options: .caseInsensitive) else { return nil }
         var cleaned = String(line[range.lowerBound...])
             .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let parenRange = cleaned.range(of: #"\s*\([^)]*\)\s*$"#, options: .regularExpression) {
-            cleaned.removeSubrange(parenRange)
+        if let parenStart = cleaned.lastIndex(of: "(") {
+            cleaned = String(cleaned[..<parenStart])
+                .trimmingCharacters(in: .whitespaces)
         }
-        cleaned = cleaned.trimmingCharacters(in: .whitespaces)
         return cleaned
     }
 
