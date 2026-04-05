@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import SwiftUI
 
 @MainActor
@@ -34,6 +35,8 @@ final class StatusItemController {
         let cardView = UsageCardView(
             snapshot: self.currentSnapshot,
             error: self.currentError,
+            launchAtLogin: SMAppService.mainApp.status == .enabled,
+            onToggleLaunchAtLogin: { [weak self] in Task { self?.toggleLaunchAtLogin() } },
             onRetry: { [weak self] in Task { await self?.forceRefresh() } },
             onQuit: { NSApplication.shared.terminate(nil) })
         let hostingView = NSHostingView(rootView: cardView)
@@ -136,6 +139,20 @@ final class StatusItemController {
             self.setIcon(sessionUsed: nil, weeklyUsed: nil, stale: true)
             self.rebuildMenu()
         }
+    }
+
+    private func toggleLaunchAtLogin() {
+        let service = SMAppService.mainApp
+        do {
+            if service.status == .enabled {
+                try service.unregister()
+            } else {
+                try service.register()
+            }
+        } catch {
+            self.currentError = "Failed to update login item: \(error.localizedDescription)"
+        }
+        self.rebuildMenu()
     }
 
     private func updateScanProgress(

@@ -3,6 +3,8 @@ import SwiftUI
 struct UsageCardView: View {
     let snapshot: UsageSnapshot?
     let error: String?
+    let launchAtLogin: Bool
+    let onToggleLaunchAtLogin: () -> Void
     let onRetry: () -> Void
     let onQuit: () -> Void
 
@@ -118,6 +120,13 @@ struct UsageCardView: View {
 
     private var footerSection: some View {
         HStack {
+            Toggle("Launch at Login", isOn: Binding(
+                get: { self.launchAtLogin },
+                set: { _ in self.onToggleLaunchAtLogin() }
+            ))
+            .toggleStyle(.checkbox)
+            .font(.system(size: 11))
+            .foregroundStyle(.secondary)
             Spacer()
             Button("Quit") { self.onQuit() }
                 .buttonStyle(.plain)
