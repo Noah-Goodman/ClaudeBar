@@ -331,7 +331,11 @@ actor CLISession {
         let pattern = #"\u001B\[[0-?]*[ -/]*[@-~]"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return text }
         let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        return regex.stringByReplacingMatches(in: text, range: range, withTemplate: "")
+        let spaced = regex.stringByReplacingMatches(in: text, range: range, withTemplate: " ")
+        let collapsePattern = #" {2,}"#
+        guard let collapseRegex = try? NSRegularExpression(pattern: collapsePattern) else { return spaced }
+        let spacedRange = NSRange(spaced.startIndex..<spaced.endIndex, in: spaced)
+        return collapseRegex.stringByReplacingMatches(in: spaced, range: spacedRange, withTemplate: " ")
     }
 
     private static func probeDirectory() -> URL {
