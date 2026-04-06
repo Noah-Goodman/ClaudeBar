@@ -3,16 +3,19 @@ import ServiceManagement
 import SwiftUI
 
 @MainActor
-final class StatusItemController {
+final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let menu: NSMenu
     private var refreshTask: Task<Void, Never>?
     private var currentSnapshot: UsageSnapshot?
     private var currentError: String?
+    private var isRefreshing = false
 
-    init() {
+    override init() {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         self.menu = NSMenu()
+        super.init()
+        self.menu.delegate = self
         self.statusItem.menu = self.menu
 
         if let cached = CachedUsage.load() {
@@ -35,8 +38,10 @@ final class StatusItemController {
         let cardView = UsageCardView(
             snapshot: self.currentSnapshot,
             error: self.currentError,
+            isRefreshing: self.isRefreshing,
             launchAtLogin: SMAppService.mainApp.status == .enabled,
             onToggleLaunchAtLogin: { [weak self] in Task { self?.toggleLaunchAtLogin() } },
+            onRefresh: { [weak self] in Task { await self?.forceRefresh() } },
             onRetry: { [weak self] in Task { await self?.forceRefresh() } },
             onQuit: { NSApplication.shared.terminate(nil) })
         let hostingView = NSHostingView(rootView: cardView)
@@ -76,22 +81,36 @@ final class StatusItemController {
     }
 
     private func fetchAndUpdate() async {
+        self.isRefreshing = true
+        self.rebuildMenu()
+        defer {
+            self.isRefreshing = false
+            self.rebuildMenu()
+        }
         do {
             let rawOutput = try await CLISession.shared.fetchUsage()
             let parsed = try UsageParser.parse(rawOutput)
 
             let session = parsed.sessionPercentUsed.map {
-                UsageMetric(label: "Session", usedPercent: $0, resetDescription: parsed.sessionReset)
+                UsageMetric(label: "Session", usedPercent: $0, resetDescription: parsed.sessionReset, spentDescription: nil, isUnlimited: false)
             }
             let weekly = parsed.weeklyPercentUsed.map {
-                UsageMetric(label: "Weekly", usedPercent: $0, resetDescription: parsed.weeklyReset)
+                UsageMetric(label: "Weekly", usedPercent: $0, resetDescription: parsed.weeklyReset, spentDescription: nil, isUnlimited: false)
             }
             let sonnet = parsed.sonnetPercentUsed.map {
-                UsageMetric(label: "Sonnet", usedPercent: $0, resetDescription: parsed.sonnetReset)
+                UsageMetric(label: "Sonnet", usedPercent: $0, resetDescription: parsed.sonnetReset, spentDescription: nil, isUnlimited: false)
+            }
+            let extraUsage: UsageMetric?
+            if let percent = parsed.extraUsagePercentUsed {
+                extraUsage = UsageMetric(label: "Extra Usage", usedPercent: percent, resetDescription: parsed.extraUsageReset, spentDescription: parsed.extraUsageSpent, isUnlimited: false)
+            } else if parsed.extraUsageUnlimited {
+                extraUsage = UsageMetric(label: "Extra Usage", usedPercent: 0, resetDescription: nil, spentDescription: "Unlimited", isUnlimited: true)
+            } else {
+                extraUsage = nil
             }
 
             let cached = CachedUsage(
-                session: session, weekly: weekly, sonnet: sonnet,
+                session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage,
                 cost: nil, fetchedAt: Date())
             cached.save()
 
@@ -108,7 +127,7 @@ final class StatusItemController {
             let progressTask = Task { [weak self] in
                 for await progress in CostScanner.shared.progressStream {
                     await MainActor.run {
-                        self?.updateScanProgress(session: session, weekly: weekly, sonnet: sonnet, progress: progress)
+                        self?.updateScanProgress(session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage, progress: progress)
                     }
                 }
             }
@@ -117,7 +136,7 @@ final class StatusItemController {
             progressTask.cancel()
 
             let cachedWithCost = CachedUsage(
-                session: session, weekly: weekly, sonnet: sonnet,
+                session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage,
                 cost: cost, fetchedAt: Date())
             cachedWithCost.save()
 
@@ -141,6 +160,12 @@ final class StatusItemController {
         }
     }
 
+    nonisolated func menuWillOpen(_ menu: NSMenu) {
+        MainActor.assumeIsolated {
+            self.rebuildMenu()
+        }
+    }
+
     private func toggleLaunchAtLogin() {
         let service = SMAppService.mainApp
         do {
@@ -159,11 +184,12 @@ final class StatusItemController {
         session: UsageMetric?,
         weekly: UsageMetric?,
         sonnet: UsageMetric?,
+        extraUsage: UsageMetric?,
         progress: ScanProgress)
     {
         guard !progress.isComplete else { return }
         self.currentSnapshot = UsageSnapshot(
-            session: session, weekly: weekly, sonnet: sonnet,
+            session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage,
             cost: nil, scanProgress: progress, updatedAt: self.currentSnapshot?.updatedAt ?? Date())
         self.rebuildMenu()
     }

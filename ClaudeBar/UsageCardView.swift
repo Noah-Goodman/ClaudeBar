@@ -3,8 +3,10 @@ import SwiftUI
 struct UsageCardView: View {
     let snapshot: UsageSnapshot?
     let error: String?
+    let isRefreshing: Bool
     let launchAtLogin: Bool
     let onToggleLaunchAtLogin: () -> Void
+    let onRefresh: () -> Void
     let onRetry: () -> Void
     let onQuit: () -> Void
 
@@ -29,8 +31,23 @@ struct UsageCardView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("Claude")
-                .font(.system(size: 14, weight: .bold))
+            HStack {
+                Text("Claude")
+                    .font(.system(size: 14, weight: .bold))
+                Spacer()
+                if self.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.7)
+                } else {
+                    Button(action: self.onRefresh) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
             if let snapshot {
                 Text("Updated \(Formatting.timeAgo(from: snapshot.updatedAt))")
                     .font(.system(size: 11))
@@ -51,6 +68,9 @@ struct UsageCardView: View {
             }
             if let sonnet = snapshot.sonnet {
                 MetricRow(metric: sonnet)
+            }
+            if let extraUsage = snapshot.extraUsage {
+                MetricRow(metric: extraUsage)
             }
         }
         .padding(.top, 10)
@@ -149,16 +169,27 @@ struct MetricRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(self.metric.label)
                 .font(.system(size: 13, weight: .semibold))
-            UsageProgressBar(
-                percent: self.metric.usedPercent,
-                tintColor: UsageCardView.barColor(for: self.metric.usedPercent))
-            HStack {
-                Text("\(self.metric.usedPercent)% used")
+            if self.metric.isUnlimited {
+                Text("Unlimited")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                Spacer()
-                if let reset = self.metric.resetDescription {
-                    Text(reset)
+            } else {
+                UsageProgressBar(
+                    percent: self.metric.usedPercent,
+                    tintColor: UsageCardView.barColor(for: self.metric.usedPercent))
+                HStack {
+                    Text("\(self.metric.usedPercent)% used")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    if let reset = self.metric.resetDescription {
+                        Text(reset)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                if let spent = self.metric.spentDescription {
+                    Text(spent)
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }

@@ -355,6 +355,10 @@ enum UsageParser {
         let sessionReset: String?
         let weeklyReset: String?
         let sonnetReset: String?
+        let extraUsagePercentUsed: Int?
+        let extraUsageReset: String?
+        let extraUsageSpent: String?
+        let extraUsageUnlimited: Bool
     }
 
     static func parse(_ text: String) throws -> ParsedUsage {
@@ -385,13 +389,27 @@ enum UsageParser {
         let sonnetReset = Self.extractReset(label: "currentweeksonnet", lines: lines, normalizedLines: normalizedLines)
             ?? Self.extractReset(label: "currentweeksonnetonly", lines: lines, normalizedLines: normalizedLines)
 
+        // ANSI stripping can eat characters from "Extra" (e.g. 't' consumed as CSI final byte), producing "exrausage"
+        let extraPct = Self.extractPercent(label: "extrausage", lines: lines, normalizedLines: normalizedLines)
+            ?? Self.extractPercent(label: "exrausage", lines: lines, normalizedLines: normalizedLines)
+        let extraReset = Self.extractReset(label: "extrausage", lines: lines, normalizedLines: normalizedLines)
+            ?? Self.extractReset(label: "exrausage", lines: lines, normalizedLines: normalizedLines)
+        let extraSpent = Self.extractSpent(label: "extrausage", lines: lines, normalizedLines: normalizedLines)
+            ?? Self.extractSpent(label: "exrausage", lines: lines, normalizedLines: normalizedLines)
+        let extraUnlimited = Self.containsNearLabel(keyword: "unlimited", label: "extrausage", normalizedLines: normalizedLines)
+            || Self.containsNearLabel(keyword: "unlimited", label: "exrausage", normalizedLines: normalizedLines)
+
         return ParsedUsage(
             sessionPercentUsed: sessionPct.map { 100 - $0 },
             weeklyPercentUsed: weeklyPct.map { 100 - $0 },
             sonnetPercentUsed: sonnetPct.map { 100 - $0 },
             sessionReset: sessionReset,
             weeklyReset: weeklyReset,
-            sonnetReset: sonnetReset)
+            sonnetReset: sonnetReset,
+            extraUsagePercentUsed: extraPct.map { 100 - $0 },
+            extraUsageReset: extraReset,
+            extraUsageSpent: extraSpent,
+            extraUsageUnlimited: extraUnlimited)
     }
 
     private static func extractPercent(label: String, lines: [String], normalizedLines: [String]) -> Int? {
@@ -444,6 +462,31 @@ enum UsageParser {
                 let normalized = Self.normalize(candidate)
                 if normalized.hasPrefix("current") && !normalized.contains(label) { break }
                 if let reset = Self.resetFromLine(candidate) { return reset }
+            }
+        }
+        return nil
+    }
+
+    private static func containsNearLabel(keyword: String, label: String, normalizedLines: [String]) -> Bool {
+        for (index, normalizedLine) in normalizedLines.enumerated() where normalizedLine.contains(label) {
+            let window = normalizedLines.dropFirst(index).prefix(6)
+            if window.contains(where: { $0.contains(keyword) }) { return true }
+        }
+        return false
+    }
+
+    private static func extractSpent(label: String, lines: [String], normalizedLines: [String]) -> String? {
+        let pattern = #"\$[\d,]+(?:\.\d{2})?\s*/\s*\$[\d,]+(?:\.\d{2})?\s+spent"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
+
+        for (index, normalizedLine) in normalizedLines.enumerated() where normalizedLine.contains(label) {
+            let window = lines.dropFirst(index).prefix(12)
+            for candidate in window {
+                let range = NSRange(candidate.startIndex..., in: candidate)
+                if let match = regex.firstMatch(in: candidate, range: range),
+                   let matchRange = Range(match.range, in: candidate) {
+                    return String(candidate[matchRange])
+                }
             }
         }
         return nil
