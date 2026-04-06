@@ -210,6 +210,7 @@ final class CostScanner: Sendable {
     }
 
     private static let pricingTable: [String: ModelPricing] = [
+        "claude-opus-4-6-fast":   ModelPricing(input: 30,     cacheWrite: 6.25,  cacheRead: 0.50, output: 150),
         "claude-opus-4-6":   ModelPricing(input: 5,     cacheWrite: 6.25,  cacheRead: 0.50, output: 25),
         "claude-opus-4-5":   ModelPricing(input: 5,     cacheWrite: 6.25,  cacheRead: 0.50, output: 25),
         "claude-opus-4-1":   ModelPricing(input: 15,    cacheWrite: 18.75, cacheRead: 1.50, output: 75),
