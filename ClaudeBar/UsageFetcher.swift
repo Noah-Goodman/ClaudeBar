@@ -34,34 +34,32 @@ actor CLISession {
 
         if let startedAt {
             let elapsed = Date().timeIntervalSince(startedAt)
-            if elapsed < 2.0 {
-                try await Task.sleep(nanoseconds: UInt64((2.0 - elapsed) * 1_000_000_000))
+            if elapsed < 2.5 {
+                try await Task.sleep(nanoseconds: UInt64((2.5 - elapsed) * 1_000_000_000))
             }
         }
 
-        self.drain()
-        try self.write("/usage\r")
+        // Drain the welcome screen, auto-respond to any prompts that appeared during boot.
+        try await self.handleBootPrompts(deadline: Date().addingTimeInterval(3.0))
 
-        let stopNeedles = [
-            "currentsession",
-            "currentweek",
-            "failedtoloadusagedata",
-        ]
+        try self.write("/usage\r")
 
         var buffer = Data()
         var scanText = ""
         var triggeredKeys = Set<String>()
-        let deadline = Date().addingTimeInterval(20)
-        var lastOutput = Date()
+        let deadline = Date().addingTimeInterval(25)
+        var lastOutputAt = Date()
+        var sectionsSeenAt: Date?
+        var nudged = false
 
         while Date() < deadline {
             let chunk = self.readChunk()
             if !chunk.isEmpty {
                 buffer.append(chunk)
-                lastOutput = Date()
+                lastOutputAt = Date()
                 if let text = String(data: chunk, encoding: .utf8) {
                     scanText.append(text)
-                    if scanText.count > 16384 { scanText = String(scanText.suffix(8192)) }
+                    if scanText.count > 65536 { scanText = String(scanText.suffix(32768)) }
                 }
             }
 
@@ -79,19 +77,44 @@ actor CLISession {
                 }
             }
 
-            if stopNeedles.contains(where: stripped.contains) {
-                try await Task.sleep(nanoseconds: 2_000_000_000)
+            if stripped.contains("failedtoloadusagedata") || stripped.contains("ratelimitexceeded") {
+                try await Task.sleep(nanoseconds: 800_000_000)
                 let finalChunk = self.readChunk()
                 if !finalChunk.isEmpty { buffer.append(finalChunk) }
                 break
             }
 
-            if !buffer.isEmpty && Date().timeIntervalSince(lastOutput) >= 3.0 {
+            let hasSession = stripped.contains("currentsession")
+            let hasWeekly = stripped.contains("currentweek")
+            if hasSession && hasWeekly {
+                if sectionsSeenAt == nil { sectionsSeenAt = Date() }
+                // The first render of the /usage panel often emits text incrementally with
+                // CSI cursor-advance escapes between letters (e.g. "Rese\u{1B}[1Cs\u{1B}[1CM\u{1B}[1Cy"
+                // for "Resets May"), which our ANSI strip flattens to mangled text. A benign
+                // arrow-key nudge (down then up) forces a clean full re-render at the same
+                // scroll position.
+                if !nudged, let sectionsSeenAt, Date().timeIntervalSince(sectionsSeenAt) >= 0.4 {
+                    try? self.write("\u{001B}[B")
+                    try await Task.sleep(nanoseconds: 100_000_000)
+                    try? self.write("\u{001B}[A")
+                    nudged = true
+                    lastOutputAt = Date()
+                }
+                if nudged {
+                    let sinceLastOutput = Date().timeIntervalSince(lastOutputAt)
+                    let sinceSeen = Date().timeIntervalSince(sectionsSeenAt ?? Date())
+                    if sinceLastOutput >= 1.2 || sinceSeen >= 6.0 {
+                        break
+                    }
+                }
+            }
+
+            if !buffer.isEmpty && Date().timeIntervalSince(lastOutputAt) >= 5.0 {
+                // No progress for 5s without seeing the headings — give up.
                 break
             }
 
-            try? self.write("\r")
-            try await Task.sleep(nanoseconds: 800_000_000)
+            try await Task.sleep(nanoseconds: 200_000_000)
 
             if let process, !process.isRunning {
                 throw FetchError.timedOut
@@ -105,6 +128,30 @@ actor CLISession {
         }
 
         return Self.stripANSI(text)
+    }
+
+    private func handleBootPrompts(deadline: Date) async throws {
+        var triggeredKeys = Set<String>()
+        var scanText = ""
+        while Date() < deadline {
+            let chunk = self.readChunk()
+            if !chunk.isEmpty, let text = String(data: chunk, encoding: .utf8) {
+                scanText.append(text)
+                if scanText.count > 16384 { scanText = String(scanText.suffix(8192)) }
+            }
+            if scanText.contains("\u{001B}[6n") {
+                try? self.write("\u{001B}[1;1R")
+            }
+            let stripped = Self.stripANSI(scanText).lowercased().filter { !$0.isWhitespace }
+            for (needle, response) in self.autoResponses {
+                let normalizedNeedle = needle.lowercased().filter { !$0.isWhitespace }
+                if !triggeredKeys.contains(normalizedNeedle) && stripped.contains(normalizedNeedle) {
+                    try? self.write(response)
+                    triggeredKeys.insert(normalizedNeedle)
+                }
+            }
+            try await Task.sleep(nanoseconds: 150_000_000)
+        }
     }
 
     func reset() {
@@ -361,86 +408,172 @@ enum UsageParser {
         let extraUsageUnlimited: Bool
     }
 
+    private struct Metric {
+        let usedPercent: Int?
+        let reset: String?
+        let spent: String?
+        let unlimited: Bool
+    }
+
+    // Every section heading in the /usage panel, normalized to alphanumeric-only.
+    // Used as boundaries when we slice the text into per-metric windows.
+    private static let allSectionKeys = [
+        "currentsession",
+        "currentweekallmodels",
+        "currentweek",
+        "currentweeksonnetonly",
+        "currentweeksonnet",
+        "extrausage",
+        "additionalusage",
+        "exrausage",
+    ]
+
     static func parse(_ text: String) throws -> ParsedUsage {
-        let panelText = Self.trimToUsagePanel(text) ?? text
-        let lines = panelText.components(separatedBy: .newlines)
+        let lines = text.components(separatedBy: .newlines)
         let normalizedLines = lines.map { Self.normalize($0) }
 
-        var sessionPct = Self.extractPercent(label: "currentsession", lines: lines, normalizedLines: normalizedLines)
-        var weeklyPct = Self.extractPercent(label: "currentweekallmodels", lines: lines, normalizedLines: normalizedLines)
-            ?? Self.extractPercent(label: "currentweek", lines: lines, normalizedLines: normalizedLines)
-        var sonnetPct = Self.extractPercent(label: "currentweeksonnet", lines: lines, normalizedLines: normalizedLines)
-            ?? Self.extractPercent(label: "currentweeksonnetonly", lines: lines, normalizedLines: normalizedLines)
+        let session = Self.findMetric(
+            primaryKeys: ["currentsession"],
+            mustNotContain: ["week"],
+            lines: lines, normalizedLines: normalizedLines)
 
-        if sessionPct == nil || weeklyPct == nil || sonnetPct == nil {
-            let ordered = Self.allPercents(lines)
-            if sessionPct == nil, ordered.indices.contains(0) { sessionPct = ordered[0] }
-            if weeklyPct == nil, ordered.indices.contains(1) { weeklyPct = ordered[1] }
-            if sonnetPct == nil, ordered.indices.contains(2) { sonnetPct = ordered[2] }
-        }
+        let weekly = Self.findMetric(
+            primaryKeys: ["currentweekallmodels", "currentweek"],
+            mustNotContain: ["sonnet"],
+            lines: lines, normalizedLines: normalizedLines)
 
-        guard sessionPct != nil else {
+        let sonnet = Self.findMetric(
+            primaryKeys: ["currentweeksonnetonly", "currentweeksonnet"],
+            mustNotContain: [],
+            lines: lines, normalizedLines: normalizedLines)
+
+        let extra = Self.findMetric(
+            primaryKeys: ["extrausage", "additionalusage", "exrausage"],
+            mustNotContain: [],
+            lines: lines, normalizedLines: normalizedLines)
+
+        guard let session, session.usedPercent != nil else {
             throw FetchError.parseFailed("Could not find session usage in CLI output")
         }
 
-        let sessionReset = Self.extractReset(label: "currentsession", lines: lines, normalizedLines: normalizedLines)
-        let weeklyReset = Self.extractReset(label: "currentweekallmodels", lines: lines, normalizedLines: normalizedLines)
-            ?? Self.extractReset(label: "currentweek", lines: lines, normalizedLines: normalizedLines)
-        let sonnetReset = Self.extractReset(label: "currentweeksonnet", lines: lines, normalizedLines: normalizedLines)
-            ?? Self.extractReset(label: "currentweeksonnetonly", lines: lines, normalizedLines: normalizedLines)
-
-        // ANSI stripping can eat characters from "Extra" (e.g. 't' consumed as CSI final byte), producing "exrausage"
-        let extraPct = Self.extractPercent(label: "extrausage", lines: lines, normalizedLines: normalizedLines)
-            ?? Self.extractPercent(label: "exrausage", lines: lines, normalizedLines: normalizedLines)
-        let extraReset = Self.extractReset(label: "extrausage", lines: lines, normalizedLines: normalizedLines)
-            ?? Self.extractReset(label: "exrausage", lines: lines, normalizedLines: normalizedLines)
-        let extraSpent = Self.extractSpent(label: "extrausage", lines: lines, normalizedLines: normalizedLines)
-            ?? Self.extractSpent(label: "exrausage", lines: lines, normalizedLines: normalizedLines)
-        let extraUnlimited = Self.containsNearLabel(keyword: "unlimited", label: "extrausage", normalizedLines: normalizedLines)
-            || Self.containsNearLabel(keyword: "unlimited", label: "exrausage", normalizedLines: normalizedLines)
-
         return ParsedUsage(
-            sessionPercentUsed: sessionPct.map { 100 - $0 },
-            weeklyPercentUsed: weeklyPct.map { 100 - $0 },
-            sonnetPercentUsed: sonnetPct.map { 100 - $0 },
-            sessionReset: sessionReset,
-            weeklyReset: weeklyReset,
-            sonnetReset: sonnetReset,
-            extraUsagePercentUsed: extraPct.map { 100 - $0 },
-            extraUsageReset: extraReset,
-            extraUsageSpent: extraSpent,
-            extraUsageUnlimited: extraUnlimited)
+            sessionPercentUsed: session.usedPercent,
+            weeklyPercentUsed: weekly?.usedPercent,
+            sonnetPercentUsed: sonnet?.usedPercent,
+            sessionReset: session.reset,
+            weeklyReset: weekly?.reset,
+            sonnetReset: sonnet?.reset,
+            extraUsagePercentUsed: extra?.usedPercent,
+            extraUsageReset: extra?.reset,
+            extraUsageSpent: extra?.spent,
+            extraUsageUnlimited: extra?.unlimited ?? false)
     }
 
-    private static func extractPercent(label: String, lines: [String], normalizedLines: [String]) -> Int? {
-        for (index, normalizedLine) in normalizedLines.enumerated() where normalizedLine.contains(label) {
-            let window = lines.dropFirst(index).prefix(12)
-            for candidate in window {
-                if let percent = Self.percentFromLine(candidate) { return percent }
+    /// Find a metric by walking the text and locating the LAST occurrence of one of the
+    /// label keys that has usable data (percent + direction, or "Unlimited"). The /usage
+    /// panel re-renders multiple times (loading skeleton -> partial -> full); the latest
+    /// render is the one we trust.
+    private static func findMetric(
+        primaryKeys: [String],
+        mustNotContain: [String],
+        lines: [String], normalizedLines: [String]) -> Metric?
+    {
+        var best: Metric?
+        for index in 0..<normalizedLines.count {
+            let nl = normalizedLines[index]
+            let matchesKey = primaryKeys.contains(where: nl.contains)
+            guard matchesKey else { continue }
+            if mustNotContain.contains(where: nl.contains) { continue }
+
+            // Window: this line through the next section heading, capped at 16 lines.
+            var endIdx = min(index + 16, lines.count)
+            for j in (index + 1)..<min(index + 16, normalizedLines.count) {
+                let candidate = normalizedLines[j]
+                let isOtherSection = Self.allSectionKeys.contains(where: { key in
+                    primaryKeys.contains(key) ? false : candidate.contains(key)
+                })
+                if isOtherSection {
+                    endIdx = j
+                    break
+                }
+            }
+            let window = Array(lines[index..<endIdx])
+
+            let usedPercent = Self.findPercentUsed(in: window)
+            let reset = Self.findReset(in: window)
+            let spent = Self.findSpent(in: window)
+            let unlimited = window.contains { $0.lowercased().contains("unlimited") }
+
+            // Carry forward fields from the previous best when the new render's value
+            // is missing. The percent can change minute-to-minute so we always take the
+            // latest, but reset/spent are slow-changing — if a later render mangled them
+            // we'd rather keep the earlier clean version than drop them entirely.
+            if usedPercent != nil || unlimited {
+                best = Metric(
+                    usedPercent: usedPercent,
+                    reset: reset ?? best?.reset,
+                    spent: spent ?? best?.spent,
+                    unlimited: unlimited)
+            }
+        }
+        return best
+    }
+
+    private static func findPercentUsed(in lines: [String]) -> Int? {
+        let pattern = #"([0-9]{1,3}(?:\.[0-9]+)?)\s*%"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+
+        for line in lines {
+            if Self.isStatusContextLine(line) { continue }
+            let lower = line.lowercased()
+            let isUsed = ["used", "spent", "consumed"].contains(where: lower.contains)
+            let isLeft = ["left", "remaining", "available"].contains(where: lower.contains)
+            guard isUsed || isLeft else { continue }
+
+            let nsRange = NSRange(line.startIndex..., in: line)
+            guard let match = regex.firstMatch(in: line, range: nsRange),
+                  match.numberOfRanges >= 2,
+                  let valueRange = Range(match.range(at: 1), in: line) else { continue }
+
+            let raw = Double(line[valueRange]) ?? 0
+            let clamped = max(0, min(100, raw))
+            return isUsed ? Int(clamped.rounded()) : Int(max(0, 100 - clamped).rounded())
+        }
+        return nil
+    }
+
+    private static func findReset(in lines: [String]) -> String? {
+        for line in lines {
+            guard let range = line.range(of: "Resets ", options: .caseInsensitive) else { continue }
+            var cleaned = String(line[range.lowerBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if let parenStart = cleaned.firstIndex(of: "(") {
+                cleaned = String(cleaned[..<parenStart]).trimmingCharacters(in: .whitespaces)
+            }
+            // Reject mangled output (e.g., "Resets " with single chars and gaps from a
+            // partial render that got overlaid mid-frame). A clean reset always carries
+            // a recognizable time token.
+            let lower = cleaned.lowercased()
+            let timeTokens = ["am", "pm", ":",
+                              "jan", "feb", "mar", "apr", "may", "jun",
+                              "jul", "aug", "sep", "oct", "nov", "dec",
+                              "mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            let hasTime = timeTokens.contains(where: lower.contains)
+            if !cleaned.isEmpty && hasTime {
+                return cleaned
             }
         }
         return nil
     }
 
-    private static func percentFromLine(_ line: String) -> Int? {
-        if Self.isStatusContextLine(line) { return nil }
-
-        let pattern = #"([0-9]{1,3}(?:\.[0-9]+)?)\s*%"#
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
-              match.numberOfRanges >= 2,
-              let valueRange = Range(match.range(at: 1), in: line)
-        else { return nil }
-
-        let rawValue = Double(line[valueRange]) ?? 0
-        let clamped = max(0, min(100, rawValue))
-        let lower = line.lowercased()
-
-        if ["used", "spent", "consumed"].contains(where: lower.contains) {
-            return Int(max(0, 100 - clamped).rounded())
-        }
-        if ["left", "remaining", "available"].contains(where: lower.contains) {
-            return Int(clamped.rounded())
+    private static func findSpent(in lines: [String]) -> String? {
+        let pattern = #"\$[\d,]+(?:\.\d{2})?\s*/\s*\$[\d,]+(?:\.\d{2})?\s+spent"#
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
+        for line in lines {
+            let nsRange = NSRange(line.startIndex..., in: line)
+            if let match = regex.firstMatch(in: line, range: nsRange),
+               let r = Range(match.range, in: line) {
+                return String(line[r])
+            }
         }
         return nil
     }
@@ -449,70 +582,6 @@ enum UsageParser {
         guard line.contains("|") else { return false }
         let lower = line.lowercased()
         return ["opus", "sonnet", "haiku", "default"].contains(where: lower.contains)
-    }
-
-    private static func allPercents(_ lines: [String]) -> [Int] {
-        lines.compactMap { Self.percentFromLine($0) }
-    }
-
-    private static func extractReset(label: String, lines: [String], normalizedLines: [String]) -> String? {
-        for (index, normalizedLine) in normalizedLines.enumerated() where normalizedLine.contains(label) {
-            let window = lines.dropFirst(index).prefix(14)
-            for candidate in window {
-                let normalized = Self.normalize(candidate)
-                if normalized.hasPrefix("current") && !normalized.contains(label) { break }
-                if let reset = Self.resetFromLine(candidate) { return reset }
-            }
-        }
-        return nil
-    }
-
-    private static func containsNearLabel(keyword: String, label: String, normalizedLines: [String]) -> Bool {
-        for (index, normalizedLine) in normalizedLines.enumerated() where normalizedLine.contains(label) {
-            let window = normalizedLines.dropFirst(index).prefix(6)
-            if window.contains(where: { $0.contains(keyword) }) { return true }
-        }
-        return false
-    }
-
-    private static func extractSpent(label: String, lines: [String], normalizedLines: [String]) -> String? {
-        let pattern = #"\$[\d,]+(?:\.\d{2})?\s*/\s*\$[\d,]+(?:\.\d{2})?\s+spent"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
-
-        for (index, normalizedLine) in normalizedLines.enumerated() where normalizedLine.contains(label) {
-            let window = lines.dropFirst(index).prefix(12)
-            for candidate in window {
-                let range = NSRange(candidate.startIndex..., in: candidate)
-                if let match = regex.firstMatch(in: candidate, range: range),
-                   let matchRange = Range(match.range, in: candidate) {
-                    return String(candidate[matchRange])
-                }
-            }
-        }
-        return nil
-    }
-
-    private static func resetFromLine(_ line: String) -> String? {
-        guard let range = line.range(of: "Resets", options: .caseInsensitive) else { return nil }
-        var cleaned = String(line[range.lowerBound...])
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        if let parenStart = cleaned.lastIndex(of: "(") {
-            cleaned = String(cleaned[..<parenStart])
-                .trimmingCharacters(in: .whitespaces)
-        }
-        return cleaned
-    }
-
-    private static func trimToUsagePanel(_ text: String) -> String? {
-        guard let settingsRange = text.range(of: "Settings:", options: [.caseInsensitive, .backwards]) else {
-            return nil
-        }
-        let tail = text[settingsRange.lowerBound...]
-        guard tail.range(of: "Usage", options: .caseInsensitive) != nil else { return nil }
-        let lower = tail.lowercased()
-        guard lower.contains("%") && (lower.contains("used") || lower.contains("left") || lower.contains("remaining"))
-        else { return nil }
-        return String(tail)
     }
 
     private static func normalize(_ text: String) -> String {
