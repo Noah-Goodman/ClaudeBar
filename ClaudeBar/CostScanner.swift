@@ -181,15 +181,24 @@ final class CostScanner: Sendable {
             let outputTokens = Self.intValue(usage["output_tokens"])
             let cacheReadTokens = Self.intValue(usage["cache_read_input_tokens"])
             let cacheCreateTokens = Self.intValue(usage["cache_creation_input_tokens"])
+            // Cache creation splits into 5-minute (1.25x) and 1-hour (2x) TTLs at different rates.
+            // Tokens not explicitly tagged 1-hour (incl. older logs lacking the breakdown) bill at the 5m rate.
+            let cacheWrite1hTokens = Self.intValue((usage["cache_creation"] as? [String: Any])?["ephemeral_1h_input_tokens"])
+            let cacheWrite5mTokens = max(0, cacheCreateTokens - cacheWrite1hTokens)
             let lineTokens = inputTokens + outputTokens + cacheReadTokens + cacheCreateTokens
             if lineTokens == 0 { continue }
 
+            // Fast mode is recorded on usage.speed, not in the model string.
+            let isFast = (usage["speed"] as? String) == "fast"
+
             let cost = Self.computeCost(
                 model: model,
+                isFast: isFast,
                 inputTokens: inputTokens,
                 outputTokens: outputTokens,
                 cacheReadTokens: cacheReadTokens,
-                cacheCreateTokens: cacheCreateTokens)
+                cacheWrite5mTokens: cacheWrite5mTokens,
+                cacheWrite1hTokens: cacheWrite1hTokens)
 
             var day = days[dayKey] ?? DayUsage(cost: 0, tokens: 0)
             day.cost += cost
@@ -204,42 +213,52 @@ final class CostScanner: Sendable {
 
     private struct ModelPricing {
         let input: Double
-        let cacheWrite: Double
+        let cacheWrite5m: Double
+        let cacheWrite1h: Double
         let cacheRead: Double
         let output: Double
     }
 
     private static let pricingTable: [String: ModelPricing] = [
-        "claude-opus-4-7":   ModelPricing(input: 5,     cacheWrite: 6.25,  cacheRead: 0.50, output: 25),
-        "claude-opus-4-6-fast":   ModelPricing(input: 30,     cacheWrite: 6.25,  cacheRead: 0.50, output: 150),
-        "claude-opus-4-6":   ModelPricing(input: 5,     cacheWrite: 6.25,  cacheRead: 0.50, output: 25),
-        "claude-opus-4-5":   ModelPricing(input: 5,     cacheWrite: 6.25,  cacheRead: 0.50, output: 25),
-        "claude-opus-4-1":   ModelPricing(input: 15,    cacheWrite: 18.75, cacheRead: 1.50, output: 75),
-        "claude-opus-4":     ModelPricing(input: 15,    cacheWrite: 18.75, cacheRead: 1.50, output: 75),
-        "claude-opus-3":     ModelPricing(input: 15,    cacheWrite: 18.75, cacheRead: 1.50, output: 75),
-        "claude-sonnet-4-6": ModelPricing(input: 3,     cacheWrite: 3.75,  cacheRead: 0.30, output: 15),
-        "claude-sonnet-4-5": ModelPricing(input: 3,     cacheWrite: 3.75,  cacheRead: 0.30, output: 15),
-        "claude-sonnet-4":   ModelPricing(input: 3,     cacheWrite: 3.75,  cacheRead: 0.30, output: 15),
-        "claude-sonnet-3-7": ModelPricing(input: 3,     cacheWrite: 3.75,  cacheRead: 0.30, output: 15),
-        "claude-haiku-4-5":  ModelPricing(input: 1,     cacheWrite: 1.25,  cacheRead: 0.10, output: 5),
-        "claude-haiku-3-5":  ModelPricing(input: 0.80,  cacheWrite: 1,     cacheRead: 0.08, output: 4),
-        "claude-haiku-3":    ModelPricing(input: 0.25,  cacheWrite: 0.30,  cacheRead: 0.03, output: 1.25),
+        "claude-opus-4-8":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
+        "claude-opus-4-8-fast":   ModelPricing(input: 10,    cacheWrite5m: 12.50, cacheWrite1h: 20,    cacheRead: 1.00, output: 50),
+        "claude-opus-4-7":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
+        "claude-opus-4-7-fast":   ModelPricing(input: 30,    cacheWrite5m: 37.50, cacheWrite1h: 60,    cacheRead: 3.00, output: 150),
+        "claude-opus-4-6-fast":   ModelPricing(input: 30,    cacheWrite5m: 37.50, cacheWrite1h: 60,    cacheRead: 3.00, output: 150),
+        "claude-opus-4-6":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
+        "claude-opus-4-5":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
+        "claude-opus-4-1":        ModelPricing(input: 15,    cacheWrite5m: 18.75, cacheWrite1h: 30,    cacheRead: 1.50, output: 75),
+        "claude-opus-4":          ModelPricing(input: 15,    cacheWrite5m: 18.75, cacheWrite1h: 30,    cacheRead: 1.50, output: 75),
+        "claude-opus-3":          ModelPricing(input: 15,    cacheWrite5m: 18.75, cacheWrite1h: 30,    cacheRead: 1.50, output: 75),
+        "claude-sonnet-4-6":      ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
+        "claude-sonnet-4-5":      ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
+        "claude-sonnet-4":        ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
+        "claude-sonnet-3-7":      ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
+        "claude-haiku-4-5":       ModelPricing(input: 1,     cacheWrite5m: 1.25,  cacheWrite1h: 2,     cacheRead: 0.10, output: 5),
+        "claude-haiku-3-5":       ModelPricing(input: 0.80,  cacheWrite5m: 1,     cacheWrite1h: 1.60,  cacheRead: 0.08, output: 4),
+        "claude-haiku-3":         ModelPricing(input: 0.25,  cacheWrite5m: 0.30,  cacheWrite1h: 0.50,  cacheRead: 0.03, output: 1.25),
     ]
 
     private static func computeCost(
         model: String,
+        isFast: Bool,
         inputTokens: Int,
         outputTokens: Int,
         cacheReadTokens: Int,
-        cacheCreateTokens: Int) -> Double
+        cacheWrite5mTokens: Int,
+        cacheWrite1hTokens: Int) -> Double
     {
         let normalizedModel = Self.normalizeModel(model)
-        guard let pricing = self.pricingTable[normalizedModel] else { return 0 }
+        // Fast-mode rates live under a "-fast" key; fall back to the standard rate
+        // for models that have no dedicated fast-mode pricing.
+        let pricingKey = isFast ? "\(normalizedModel)-fast" : normalizedModel
+        guard let pricing = self.pricingTable[pricingKey] ?? self.pricingTable[normalizedModel] else { return 0 }
 
         let perToken = 1.0 / 1_000_000
         return Double(inputTokens) * pricing.input * perToken
             + Double(outputTokens) * pricing.output * perToken
-            + Double(cacheCreateTokens) * pricing.cacheWrite * perToken
+            + Double(cacheWrite5mTokens) * pricing.cacheWrite5m * perToken
+            + Double(cacheWrite1hTokens) * pricing.cacheWrite1h * perToken
             + Double(cacheReadTokens) * pricing.cacheRead * perToken
     }
 
@@ -250,7 +269,9 @@ final class CostScanner: Sendable {
         }
         name = name.replacingOccurrences(of: "@", with: "-")
 
-        let suffixes = [#"-\d{8}$"#, #"-v\d+:\d+$"#]
+        // Strip a trailing context-window annotation like "[1m]" first, so
+        // claude-opus-4-8[1m] normalizes to claude-opus-4-8 (1M context bills at standard rates).
+        let suffixes = [#"\[[^\]]*\]$"#, #"-\d{8}$"#, #"-v\d+:\d+$"#]
         for pattern in suffixes {
             if let regex = try? NSRegularExpression(pattern: pattern),
                let match = regex.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)),
@@ -314,6 +335,10 @@ struct CachedFile: Codable {
 }
 
 struct CostCache: Codable {
+    // Bump whenever the pricing table changes so stale per-file costs are recomputed
+    // instead of being served from cache at the old rates.
+    static let currentPricingVersion = 1
+    var pricingVersion = Self.currentPricingVersion
     var files: [String: CachedFile] = [:]
 
     private static var cacheURL: URL {
@@ -326,7 +351,8 @@ struct CostCache: Codable {
 
     static func load() -> CostCache {
         guard let data = try? Data(contentsOf: self.cacheURL),
-              let decoded = try? JSONDecoder().decode(CostCache.self, from: data)
+              let decoded = try? JSONDecoder().decode(CostCache.self, from: data),
+              decoded.pricingVersion == Self.currentPricingVersion
         else { return CostCache() }
         return decoded
     }
