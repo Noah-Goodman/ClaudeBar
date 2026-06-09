@@ -581,7 +581,7 @@ enum UsageParser {
     private static func isStatusContextLine(_ line: String) -> Bool {
         guard line.contains("|") else { return false }
         let lower = line.lowercased()
-        return ["opus", "sonnet", "haiku", "default"].contains(where: lower.contains)
+        return ["opus", "sonnet", "haiku", "fable", "mythos", "default"].contains(where: lower.contains)
     }
 
     private static func normalize(_ text: String) -> String {

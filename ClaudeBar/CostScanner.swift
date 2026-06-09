@@ -220,6 +220,8 @@ final class CostScanner: Sendable {
     }
 
     private static let pricingTable: [String: ModelPricing] = [
+        "claude-fable-5":         ModelPricing(input: 10,    cacheWrite5m: 12.50, cacheWrite1h: 20,    cacheRead: 1.00, output: 50),
+        "claude-mythos-5":        ModelPricing(input: 10,    cacheWrite5m: 12.50, cacheWrite1h: 20,    cacheRead: 1.00, output: 50),
         "claude-opus-4-8":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
         "claude-opus-4-8-fast":   ModelPricing(input: 10,    cacheWrite5m: 12.50, cacheWrite1h: 20,    cacheRead: 1.00, output: 50),
         "claude-opus-4-7":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
@@ -337,7 +339,7 @@ struct CachedFile: Codable {
 struct CostCache: Codable {
     // Bump whenever the pricing table changes so stale per-file costs are recomputed
     // instead of being served from cache at the old rates.
-    static let currentPricingVersion = 1
+    static let currentPricingVersion = 2
     var pricingVersion = Self.currentPricingVersion
     var files: [String: CachedFile] = [:]
 
