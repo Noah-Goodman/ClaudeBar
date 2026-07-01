@@ -97,8 +97,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             let weekly = parsed.weeklyPercentUsed.map {
                 UsageMetric(label: "Weekly", usedPercent: $0, resetDescription: parsed.weeklyReset, spentDescription: nil, isUnlimited: false)
             }
-            let sonnet = parsed.sonnetPercentUsed.map {
-                UsageMetric(label: "Sonnet", usedPercent: $0, resetDescription: parsed.sonnetReset, spentDescription: nil, isUnlimited: false)
+            let fable = parsed.fablePercentUsed.map {
+                UsageMetric(label: "Fable", usedPercent: $0, resetDescription: parsed.fableReset, spentDescription: nil, isUnlimited: false)
             }
             let extraUsage: UsageMetric?
             if let percent = parsed.extraUsagePercentUsed {
@@ -110,7 +110,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             }
 
             let cached = CachedUsage(
-                session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage,
+                session: session, weekly: weekly, fable: fable, extraUsage: extraUsage,
                 cost: nil, fetchedAt: Date())
             cached.save()
 
@@ -127,7 +127,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             let progressTask = Task { [weak self] in
                 for await progress in CostScanner.shared.progressStream {
                     await MainActor.run {
-                        self?.updateScanProgress(session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage, progress: progress)
+                        self?.updateScanProgress(session: session, weekly: weekly, fable: fable, extraUsage: extraUsage, progress: progress)
                     }
                 }
             }
@@ -136,7 +136,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             progressTask.cancel()
 
             let cachedWithCost = CachedUsage(
-                session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage,
+                session: session, weekly: weekly, fable: fable, extraUsage: extraUsage,
                 cost: cost, fetchedAt: Date())
             cachedWithCost.save()
 
@@ -183,13 +183,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func updateScanProgress(
         session: UsageMetric?,
         weekly: UsageMetric?,
-        sonnet: UsageMetric?,
+        fable: UsageMetric?,
         extraUsage: UsageMetric?,
         progress: ScanProgress)
     {
         guard !progress.isComplete else { return }
         self.currentSnapshot = UsageSnapshot(
-            session: session, weekly: weekly, sonnet: sonnet, extraUsage: extraUsage,
+            session: session, weekly: weekly, fable: fable, extraUsage: extraUsage,
             cost: nil, scanProgress: progress, updatedAt: self.currentSnapshot?.updatedAt ?? Date())
         self.rebuildMenu()
     }

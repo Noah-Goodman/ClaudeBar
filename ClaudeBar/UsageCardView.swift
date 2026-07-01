@@ -66,8 +66,8 @@ struct UsageCardView: View {
             if let weekly = snapshot.weekly {
                 MetricRow(metric: weekly)
             }
-            if let sonnet = snapshot.sonnet {
-                MetricRow(metric: sonnet)
+            if let fable = snapshot.fable {
+                MetricRow(metric: fable)
             }
             if let extraUsage = snapshot.extraUsage {
                 MetricRow(metric: extraUsage)

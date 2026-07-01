@@ -398,10 +398,10 @@ enum UsageParser {
     struct ParsedUsage: Sendable {
         let sessionPercentUsed: Int?
         let weeklyPercentUsed: Int?
-        let sonnetPercentUsed: Int?
+        let fablePercentUsed: Int?
         let sessionReset: String?
         let weeklyReset: String?
-        let sonnetReset: String?
+        let fableReset: String?
         let extraUsagePercentUsed: Int?
         let extraUsageReset: String?
         let extraUsageSpent: String?
@@ -421,8 +421,7 @@ enum UsageParser {
         "currentsession",
         "currentweekallmodels",
         "currentweek",
-        "currentweeksonnetonly",
-        "currentweeksonnet",
+        "currentweekfable",
         "extrausage",
         "additionalusage",
         "exrausage",
@@ -439,11 +438,11 @@ enum UsageParser {
 
         let weekly = Self.findMetric(
             primaryKeys: ["currentweekallmodels", "currentweek"],
-            mustNotContain: ["sonnet"],
+            mustNotContain: ["fable"],
             lines: lines, normalizedLines: normalizedLines)
 
-        let sonnet = Self.findMetric(
-            primaryKeys: ["currentweeksonnetonly", "currentweeksonnet"],
+        let fable = Self.findMetric(
+            primaryKeys: ["currentweekfable"],
             mustNotContain: [],
             lines: lines, normalizedLines: normalizedLines)
 
@@ -459,10 +458,10 @@ enum UsageParser {
         return ParsedUsage(
             sessionPercentUsed: session.usedPercent,
             weeklyPercentUsed: weekly?.usedPercent,
-            sonnetPercentUsed: sonnet?.usedPercent,
+            fablePercentUsed: fable?.usedPercent,
             sessionReset: session.reset,
             weeklyReset: weekly?.reset,
-            sonnetReset: sonnet?.reset,
+            fableReset: fable?.reset,
             extraUsagePercentUsed: extra?.usedPercent,
             extraUsageReset: extra?.reset,
             extraUsageSpent: extra?.spent,

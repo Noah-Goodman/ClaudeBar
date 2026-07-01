@@ -18,7 +18,7 @@ struct CostSnapshot: Sendable, Codable {
 struct UsageSnapshot: Sendable {
     let session: UsageMetric?
     let weekly: UsageMetric?
-    let sonnet: UsageMetric?
+    let fable: UsageMetric?
     let extraUsage: UsageMetric?
     let cost: CostSnapshot?
     let scanProgress: ScanProgress?
@@ -28,7 +28,7 @@ struct UsageSnapshot: Sendable {
 struct CachedUsage: Codable {
     let session: UsageMetric?
     let weekly: UsageMetric?
-    let sonnet: UsageMetric?
+    let fable: UsageMetric?
     let extraUsage: UsageMetric?
     let cost: CostSnapshot?
     let fetchedAt: Date
@@ -49,7 +49,7 @@ struct CachedUsage: Codable {
 
     func toSnapshot(scanProgress: ScanProgress? = nil) -> UsageSnapshot {
         UsageSnapshot(
-            session: self.session, weekly: self.weekly, sonnet: self.sonnet,
+            session: self.session, weekly: self.weekly, fable: self.fable,
             extraUsage: self.extraUsage,
             cost: self.cost, scanProgress: scanProgress, updatedAt: self.fetchedAt)
     }
