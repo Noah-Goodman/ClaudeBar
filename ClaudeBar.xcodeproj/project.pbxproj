@@ -10,17 +10,22 @@
 		165537AEABCB033E829853EA /* ClaudeBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5293526F91B53326FAAF6B5 /* ClaudeBarApp.swift */; };
 		2F2FFF2150570CB6E1DECCCB /* CostScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC9AD88B82AC5CEC3672AB5 /* CostScanner.swift */; };
 		558CD7D3D3E9368292E25611 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = E389EF73BF226A5B46A7D42A /* Models.swift */; };
-		5E7708B731D0847B0A20F4E7 /* UsageFetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 362120B9695D91F7D6FCBE1C /* UsageFetcher.swift */; };
+		4A1B2C3D4E5F60718293A4B5 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2C3D4E5F60718293A4B5C6 /* KeychainStore.swift */; };
+		6C3D4E5F60718293A4B5C6D7 /* AnthropicAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D4E5F60718293A4B5C6D7E8 /* AnthropicAPI.swift */; };
+		8E5F60718293A4B5C6D7E8F9 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F60718293A4B5C6D7E8F90A /* AccountManager.swift */; };
 		AA35BC66FACAFAF684F426D9 /* IconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285790D7C7E97AC740DBBF51 /* IconRenderer.swift */; };
 		B7570350966327BD6ACD8B67 /* UsageCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7ABDDDCD6098692FD940E4 /* UsageCardView.swift */; };
 		B9739EFA1F1557CADAFD84FE /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3FD5A6CF390B4AC977EB9ED /* StatusItemController.swift */; };
+		AB10203040506070809010A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AB10203040506070809010A2 /* Sparkle */; };
 		DCD92DAF6BED1377B7DFD1BA /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C6DCEB5BB23BA7D1AC95F4 /* Formatting.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		1AC9AD88B82AC5CEC3672AB5 /* CostScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostScanner.swift; sourceTree = "<group>"; };
 		285790D7C7E97AC740DBBF51 /* IconRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconRenderer.swift; sourceTree = "<group>"; };
-		362120B9695D91F7D6FCBE1C /* UsageFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageFetcher.swift; sourceTree = "<group>"; };
+		5B2C3D4E5F60718293A4B5C6 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		7D4E5F60718293A4B5C6D7E8 /* AnthropicAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicAPI.swift; sourceTree = "<group>"; };
+		9F60718293A4B5C6D7E8F90A /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountManager.swift; sourceTree = "<group>"; };
 		70C6DCEB5BB23BA7D1AC95F4 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		B5293526F91B53326FAAF6B5 /* ClaudeBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeBarApp.swift; sourceTree = "<group>"; };
 		BF7ABDDDCD6098692FD940E4 /* UsageCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardView.swift; sourceTree = "<group>"; };
@@ -41,14 +46,16 @@
 		C7659DE78B4D9A0574CC0F6C /* ClaudeBar */ = {
 			isa = PBXGroup;
 			children = (
+				9F60718293A4B5C6D7E8F90A /* AccountManager.swift */,
+				7D4E5F60718293A4B5C6D7E8 /* AnthropicAPI.swift */,
 				B5293526F91B53326FAAF6B5 /* ClaudeBarApp.swift */,
 				1AC9AD88B82AC5CEC3672AB5 /* CostScanner.swift */,
 				70C6DCEB5BB23BA7D1AC95F4 /* Formatting.swift */,
 				285790D7C7E97AC740DBBF51 /* IconRenderer.swift */,
+				5B2C3D4E5F60718293A4B5C6 /* KeychainStore.swift */,
 				E389EF73BF226A5B46A7D42A /* Models.swift */,
 				E3FD5A6CF390B4AC977EB9ED /* StatusItemController.swift */,
 				BF7ABDDDCD6098692FD940E4 /* UsageCardView.swift */,
-				362120B9695D91F7D6FCBE1C /* UsageFetcher.swift */,
 			);
 			path = ClaudeBar;
 			sourceTree = "<group>";
@@ -69,6 +76,7 @@
 			buildConfigurationList = E0574D079C1C2E6151FBF1F1 /* Build configuration list for PBXNativeTarget "ClaudeBar" */;
 			buildPhases = (
 				FD19FF3FC0F75EA711755640 /* Sources */,
+				AB10203040506070809010A3 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -76,6 +84,7 @@
 			);
 			name = ClaudeBar;
 			packageProductDependencies = (
+				AB10203040506070809010A2 /* Sparkle */,
 			);
 			productName = ClaudeBar;
 			productReference = CC6F48A4AF790020100A205D /* ClaudeBar.app */;
@@ -106,6 +115,9 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 41556B7495FE48059E8A346C /* Products */;
+			packageReferences = (
+				AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -113,6 +125,36 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AB10203040506070809010A3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB10203040506070809010A1 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AB10203040506070809010A2 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		FD19FF3FC0F75EA711755640 /* Sources */ = {
@@ -126,7 +168,9 @@
 				558CD7D3D3E9368292E25611 /* Models.swift in Sources */,
 				B9739EFA1F1557CADAFD84FE /* StatusItemController.swift in Sources */,
 				B7570350966327BD6ACD8B67 /* UsageCardView.swift in Sources */,
-				5E7708B731D0847B0A20F4E7 /* UsageFetcher.swift in Sources */,
+				4A1B2C3D4E5F60718293A4B5 /* KeychainStore.swift in Sources */,
+				6C3D4E5F60718293A4B5C6D7 /* AnthropicAPI.swift in Sources */,
+				8E5F60718293A4B5C6D7E8F9 /* AccountManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,9 +182,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_ENTITLEMENTS = ClaudeBar/ClaudeBar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
@@ -150,6 +195,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClaudeBar/Info.plist;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
 				INFOPLIST_KEY_CFBundleDisplayName = ClaudeBar;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -159,7 +205,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.vinnysaj.claudebar;
 				PRODUCT_NAME = ClaudeBar;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -178,9 +224,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				AUTOMATION_APPLE_EVENTS = NO;
+				CODE_SIGN_ENTITLEMENTS = ClaudeBar/ClaudeBar.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = NO;
@@ -190,6 +237,7 @@
 				ENABLE_RESOURCE_ACCESS_LOCATION = NO;
 				ENABLE_RESOURCE_ACCESS_PHOTO_LIBRARY = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ClaudeBar/Info.plist;
 				INFOPLIST_GENERATION_MODE = GeneratedFile;
 				INFOPLIST_KEY_CFBundleDisplayName = ClaudeBar;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
@@ -199,7 +247,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.vinnysaj.claudebar;
 				PRODUCT_NAME = ClaudeBar;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
