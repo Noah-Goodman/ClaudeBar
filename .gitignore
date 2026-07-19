@@ -7,3 +7,6 @@ xcuserdata/
 *.zip
 *.dmg
 *.pkg
+
+# Private release tooling
+release/
