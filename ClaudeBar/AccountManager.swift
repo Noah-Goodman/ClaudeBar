@@ -384,7 +384,10 @@ actor AccountManager {
     // MARK: - Usage fetching
 
     /// Fetches usage for stale accounts, active first, sequentially with a ~1s
-    /// stagger — never parallel bursts against the API.
+    /// stagger — never parallel bursts against the API. Each account past the
+    /// first waits an extra minute per position (15, 16, 17, ... minutes), so
+    /// after the initial fetch the refreshes drift apart instead of always
+    /// landing in the same cycle.
     func refreshUsage(force: Bool = false) async {
         guard !self.isFetching else { return }
         self.isFetching = true
@@ -399,11 +402,12 @@ actor AccountManager {
         }
 
         var fetchedAny = false
-        for account in ordered {
+        for (position, account) in ordered.enumerated() {
             let isActive = account.id == self.state.activeAccountUuid
+            let interval = Self.usageRefreshInterval + TimeInterval(position * 60)
             if !force,
                let cached = self.cache.usageByAccount[account.id],
-               now.timeIntervalSince(cached.fetchedAt) < Self.usageRefreshInterval
+               now.timeIntervalSince(cached.fetchedAt) < interval
             {
                 continue
             }
