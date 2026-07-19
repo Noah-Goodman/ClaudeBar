@@ -38,7 +38,7 @@ struct UsageCardView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .frame(width: 310)
+        .frame(width: 346)
     }
 
     private var headerSection: some View {
@@ -333,7 +333,7 @@ struct CompactMetricLine: View {
                 Text(self.resetText(metric))
                     .font(.system(size: 9))
                     .foregroundStyle(.tertiary)
-                    .frame(width: 74, alignment: .trailing)
+                    .frame(width: 110, alignment: .trailing)
                     .lineLimit(1)
             } else {
                 UsageProgressBar(percent: 0, tintColor: .clear)
@@ -343,7 +343,7 @@ struct CompactMetricLine: View {
                     .foregroundStyle(.tertiary)
                     .frame(width: 32, alignment: .trailing)
                 Text("")
-                    .frame(width: 74)
+                    .frame(width: 110)
             }
         }
     }

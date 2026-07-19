@@ -28,8 +28,12 @@ actor AccountManager {
     private var rosterLoadError: KeychainError?
     private static let liveBlobCacheTTL: TimeInterval = 5
 
-    private static let activeStaleInterval: TimeInterval = 5 * 60
-    private static let inactiveStaleInterval: TimeInterval = 15 * 60
+    /// Usage is refetched per account at most this often — including across
+    /// restarts, since fetch times persist with the usage cache.
+    private static let usageRefreshInterval: TimeInterval = 15 * 60
+    /// Rendered as stale (dimmed) when older than this; slightly beyond the
+    /// refresh interval so rows don't flicker stale right before a refetch.
+    private static let usageStaleDisplayInterval: TimeInterval = 20 * 60
     private static let pendingAddDuration: TimeInterval = 10 * 60
     private static let expiryRefreshMargin: TimeInterval = 5 * 60
     private static let clobberWindow: TimeInterval = 10 * 60
@@ -52,8 +56,9 @@ actor AccountManager {
         let displays = ordered.map { account -> AccountDisplay in
             let usage = self.cache.usageByAccount[account.id]
             let isActive = account.id == self.state.activeAccountUuid
-            let staleAfter = isActive ? Self.activeStaleInterval : Self.inactiveStaleInterval
-            let isStale = usage.map { now.timeIntervalSince($0.fetchedAt) > staleAfter } ?? true
+            let isStale = usage.map {
+                now.timeIntervalSince($0.fetchedAt) > Self.usageStaleDisplayInterval
+            } ?? true
             return AccountDisplay(
                 account: account,
                 usage: usage,
@@ -396,10 +401,9 @@ actor AccountManager {
         var fetchedAny = false
         for account in ordered {
             let isActive = account.id == self.state.activeAccountUuid
-            let staleAfter = isActive ? Self.activeStaleInterval : Self.inactiveStaleInterval
             if !force,
                let cached = self.cache.usageByAccount[account.id],
-               now.timeIntervalSince(cached.fetchedAt) < staleAfter
+               now.timeIntervalSince(cached.fetchedAt) < Self.usageRefreshInterval
             {
                 continue
             }
