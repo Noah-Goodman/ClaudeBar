@@ -290,8 +290,14 @@ actor AccountManager {
         var blob: Data
         do {
             blob = try self.readRosterBlob(for: target)
+        } catch KeychainError.notFound {
+            self.setNeedsRelogin(true, for: target)
+            self.errorBanner = Banner(
+                kind: .warning,
+                message: "No stored credentials for \(email). Run claude and /login to reconnect this account.")
+            return false
         } catch {
-            self.errorBanner = Banner(kind: .error, message: "No stored credentials for \(email): \(error)")
+            self.errorBanner = Banner(kind: .error, message: "Credential read for \(email) failed: \(error)")
             return false
         }
         guard var tokens = Self.parseTokens(from: blob) else {
@@ -432,6 +438,12 @@ actor AccountManager {
             blob = isActive
                 ? try self.readLiveBlobCached()
                 : try self.readRosterBlob(for: account.id)
+        } catch KeychainError.notFound where !isActive {
+            // The roster blob is gone; only a fresh /login can bring it back.
+            // A missing live item is reconcile's problem, not this account's.
+            self.logger.error("No roster credentials for \(account.email, privacy: .private); marking for re-login")
+            self.setNeedsRelogin(true, for: account.id)
+            return
         } catch {
             self.logger.error("Credential read for \(account.email, privacy: .private) failed: \(String(describing: error), privacy: .public)")
             return
