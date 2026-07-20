@@ -27,7 +27,10 @@ final class CostScanner: Sendable {
         self.progressContinuation.yield(ScanProgress(scannedFiles: scanned, totalFiles: total, isComplete: isComplete))
     }
 
-    func scan() -> CostSnapshot {
+    /// Walks the Claude Code logs and totals cost for today and the last 30 days.
+    /// Rates come from `pricing`; models it doesn't cover land in the snapshot's
+    /// `unpricedModels` with their tokens counted but no cost attributed.
+    func scan(pricing: PricingTable) -> CostSnapshot {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let roots = [
             home.appendingPathComponent(".config/claude/projects"),
@@ -40,7 +43,7 @@ final class CostScanner: Sendable {
         let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: now) ?? now
         let sinceKey = Self.dayKey(from: thirtyDaysAgo)
 
-        var cache = CostCache.load()
+        var cache = CostCache.load(version: CostCache.version(pricing: pricing))
         var allFiles: [(url: URL, size: Int64, mtimeMs: Int64)] = []
 
         for root in roots {
@@ -72,6 +75,7 @@ final class CostScanner: Sendable {
         var totalTokens: Int = 0
         var seenMessageKeys: Set<String> = []
         var touchedPaths: Set<String> = []
+        var unpricedModels: Set<String> = []
 
         for (index, file) in allFiles.enumerated() {
             let path = file.url.path
@@ -85,6 +89,7 @@ final class CostScanner: Sendable {
                     guard day.key >= sinceKey else { continue }
                     totalCost += day.value.cost
                     totalTokens += day.value.tokens
+                    unpricedModels.formUnion(day.value.unpricedModels)
                     if day.key == todayKey {
                         todayCost += day.value.cost
                         todayTokens += day.value.tokens
@@ -96,7 +101,12 @@ final class CostScanner: Sendable {
                 continue
             }
 
-            let result = Self.parseFile(url: file.url, sinceKey: sinceKey, todayKey: todayKey, seenKeys: &seenMessageKeys)
+            let result = Self.parseFile(
+                url: file.url,
+                pricing: pricing,
+                sinceKey: sinceKey,
+                todayKey: todayKey,
+                seenKeys: &seenMessageKeys)
 
             cache.files[path] = CachedFile(
                 mtimeMs: file.mtimeMs,
@@ -106,6 +116,7 @@ final class CostScanner: Sendable {
             for day in result.days {
                 totalCost += day.value.cost
                 totalTokens += day.value.tokens
+                unpricedModels.formUnion(day.value.unpricedModels)
                 if day.key == todayKey {
                     todayCost += day.value.cost
                     todayTokens += day.value.tokens
@@ -129,7 +140,8 @@ final class CostScanner: Sendable {
             todayCostUSD: todayCost,
             todayTokens: todayTokens,
             last30DaysCostUSD: totalCost,
-            last30DaysTokens: totalTokens)
+            last30DaysTokens: totalTokens,
+            unpricedModels: unpricedModels.sorted())
     }
 
     // MARK: - File parsing
@@ -140,6 +152,7 @@ final class CostScanner: Sendable {
 
     private static func parseFile(
         url: URL,
+        pricing: PricingTable,
         sinceKey: String,
         todayKey: String,
         seenKeys: inout Set<String>) -> FileParseResult
@@ -169,6 +182,10 @@ final class CostScanner: Sendable {
                   let usage = message["usage"] as? [String: Any]
             else { continue }
 
+            // Assistant messages Claude Code writes itself (error notices and the
+            // like) carry this in place of a model. Nothing reached the API.
+            if model == "<synthetic>" { continue }
+
             let messageId = message["id"] as? String
             let requestId = obj["requestId"] as? String
             if let messageId, let requestId {
@@ -191,112 +208,48 @@ final class CostScanner: Sendable {
             // Fast mode is recorded on usage.speed, not in the model string.
             let isFast = (usage["speed"] as? String) == "fast"
 
-            let cost = Self.computeCost(
-                model: model,
-                isFast: isFast,
-                inputTokens: inputTokens,
-                outputTokens: outputTokens,
-                cacheReadTokens: cacheReadTokens,
-                cacheWrite5mTokens: cacheWrite5mTokens,
-                cacheWrite1hTokens: cacheWrite1hTokens)
-
-            var day = days[dayKey] ?? DayUsage(cost: 0, tokens: 0)
-            day.cost += cost
+            var day = days[dayKey] ?? DayUsage(cost: 0, tokens: 0, unpricedModels: [])
             day.tokens += lineTokens
+
+            if let modelPricing = pricing.pricing(for: model, isFast: isFast) {
+                day.cost += Self.computeCost(
+                    pricing: modelPricing,
+                    inputTokens: inputTokens,
+                    outputTokens: outputTokens,
+                    cacheReadTokens: cacheReadTokens,
+                    cacheWrite5mTokens: cacheWrite5mTokens,
+                    cacheWrite1hTokens: cacheWrite1hTokens)
+            } else {
+                // Count the tokens but attribute no cost, and name the model so the
+                // UI can say the total is short rather than passing it off as whole.
+                let name = PricingTable.normalizeModelName(model)
+                if !day.unpricedModels.contains(name) {
+                    day.unpricedModels.append(name)
+                }
+            }
+
             days[dayKey] = day
         }
 
         return FileParseResult(days: days)
     }
 
-    // MARK: - Pricing ($ per million tokens)
-
-    private struct ModelPricing {
-        let input: Double
-        let cacheWrite5m: Double
-        let cacheWrite1h: Double
-        let cacheRead: Double
-        let output: Double
-    }
-
-    private static let pricingTable: [String: ModelPricing] = [
-        "claude-fable-5":         ModelPricing(input: 10,    cacheWrite5m: 12.50, cacheWrite1h: 20,    cacheRead: 1.00, output: 50),
-        "claude-mythos-5":        ModelPricing(input: 10,    cacheWrite5m: 12.50, cacheWrite1h: 20,    cacheRead: 1.00, output: 50),
-        "claude-opus-4-8":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
-        "claude-opus-4-8-fast":   ModelPricing(input: 10,    cacheWrite5m: 12.50, cacheWrite1h: 20,    cacheRead: 1.00, output: 50),
-        "claude-opus-4-7":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
-        "claude-opus-4-7-fast":   ModelPricing(input: 30,    cacheWrite5m: 37.50, cacheWrite1h: 60,    cacheRead: 3.00, output: 150),
-        "claude-opus-4-6-fast":   ModelPricing(input: 30,    cacheWrite5m: 37.50, cacheWrite1h: 60,    cacheRead: 3.00, output: 150),
-        "claude-opus-4-6":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
-        "claude-opus-4-5":        ModelPricing(input: 5,     cacheWrite5m: 6.25,  cacheWrite1h: 10,    cacheRead: 0.50, output: 25),
-        "claude-opus-4-1":        ModelPricing(input: 15,    cacheWrite5m: 18.75, cacheWrite1h: 30,    cacheRead: 1.50, output: 75),
-        "claude-opus-4":          ModelPricing(input: 15,    cacheWrite5m: 18.75, cacheWrite1h: 30,    cacheRead: 1.50, output: 75),
-        "claude-opus-3":          ModelPricing(input: 15,    cacheWrite5m: 18.75, cacheWrite1h: 30,    cacheRead: 1.50, output: 75),
-        "claude-sonnet-4-6":      ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
-        "claude-sonnet-4-5":      ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
-        "claude-sonnet-4":        ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
-        "claude-sonnet-3-7":      ModelPricing(input: 3,     cacheWrite5m: 3.75,  cacheWrite1h: 6,     cacheRead: 0.30, output: 15),
-        "claude-haiku-4-5":       ModelPricing(input: 1,     cacheWrite5m: 1.25,  cacheWrite1h: 2,     cacheRead: 0.10, output: 5),
-        "claude-haiku-3-5":       ModelPricing(input: 0.80,  cacheWrite5m: 1,     cacheWrite1h: 1.60,  cacheRead: 0.08, output: 4),
-        "claude-haiku-3":         ModelPricing(input: 0.25,  cacheWrite5m: 0.30,  cacheWrite1h: 0.50,  cacheRead: 0.03, output: 1.25),
-    ]
+    // MARK: - Pricing
 
     private static func computeCost(
-        model: String,
-        isFast: Bool,
+        pricing: ModelPricing,
         inputTokens: Int,
         outputTokens: Int,
         cacheReadTokens: Int,
         cacheWrite5mTokens: Int,
         cacheWrite1hTokens: Int) -> Double
     {
-        let normalizedModel = Self.normalizeModel(model)
-        // Fast-mode rates live under a "-fast" key; fall back to the standard rate
-        // for models that have no dedicated fast-mode pricing.
-        let pricingKey = isFast ? "\(normalizedModel)-fast" : normalizedModel
-        guard let pricing = self.pricingTable[pricingKey] ?? self.pricingTable[normalizedModel] else { return 0 }
-
         let perToken = 1.0 / 1_000_000
         return Double(inputTokens) * pricing.input * perToken
             + Double(outputTokens) * pricing.output * perToken
             + Double(cacheWrite5mTokens) * pricing.cacheWrite5m * perToken
             + Double(cacheWrite1hTokens) * pricing.cacheWrite1h * perToken
             + Double(cacheReadTokens) * pricing.cacheRead * perToken
-    }
-
-    private static func normalizeModel(_ model: String) -> String {
-        var name = model
-        if name.hasPrefix("anthropic.") {
-            name = String(name.dropFirst("anthropic.".count))
-        }
-        name = name.replacingOccurrences(of: "@", with: "-")
-
-        // Strip a trailing context-window annotation like "[1m]" first, so
-        // claude-opus-4-8[1m] normalizes to claude-opus-4-8 (1M context bills at standard rates).
-        let suffixes = [#"\[[^\]]*\]$"#, #"-\d{8}$"#, #"-v\d+:\d+$"#]
-        for pattern in suffixes {
-            if let regex = try? NSRegularExpression(pattern: pattern),
-               let match = regex.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)),
-               let matchRange = Range(match.range, in: name)
-            {
-                name = String(name[name.startIndex..<matchRange.lowerBound])
-            }
-        }
-
-        // claude-3-5-sonnet -> claude-sonnet-3-5 (old naming convention)
-        let reorder = try? NSRegularExpression(pattern: #"^claude-(\d+(?:-\d+)?)-(\w+)$"#)
-        if let match = reorder?.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)),
-           let versionRange = Range(match.range(at: 1), in: name),
-           let familyRange = Range(match.range(at: 2), in: name)
-        {
-            let version = String(name[versionRange])
-            let family = String(name[familyRange])
-            if ["opus", "sonnet", "haiku"].contains(family) {
-                name = "claude-\(family)-\(version)"
-            }
-        }
-
-        return name
     }
 
     // MARK: - Helpers
@@ -328,6 +281,10 @@ final class CostScanner: Sendable {
 struct DayUsage: Codable, Sendable {
     var cost: Double
     var tokens: Int
+    /// Models seen this day that the pricing table had no rates for. Their tokens
+    /// are in `tokens`; their cost is not in `cost`. Recorded per day so the cached
+    /// result reports them only while the day stays inside the 30-day window.
+    var unpricedModels: [String]
 }
 
 struct CachedFile: Codable {
@@ -337,10 +294,18 @@ struct CachedFile: Codable {
 }
 
 struct CostCache: Codable {
-    // Bump whenever the pricing table changes so stale per-file costs are recomputed
-    // instead of being served from cache at the old rates.
-    static let currentPricingVersion = 2
-    var pricingVersion = Self.currentPricingVersion
+    /// Bump when the shape of what's cached changes, so an old file is discarded
+    /// rather than decoded into the new types.
+    private static let schemaVersion = 3
+
+    /// Identifies the rates the cached costs were computed at. Rates arriving over
+    /// the network means this can't be a constant we remember to bump: it is
+    /// derived from the pricing itself, so any change invalidates the cache.
+    static func version(pricing: PricingTable) -> String {
+        "\(Self.schemaVersion):\(pricing.version)"
+    }
+
+    var version: String
     var files: [String: CachedFile] = [:]
 
     private static var cacheURL: URL {
@@ -351,11 +316,11 @@ struct CostCache: Codable {
             .appendingPathComponent("cost-cache.json")
     }
 
-    static func load() -> CostCache {
+    static func load(version: String) -> CostCache {
         guard let data = try? Data(contentsOf: self.cacheURL),
               let decoded = try? JSONDecoder().decode(CostCache.self, from: data),
-              decoded.pricingVersion == Self.currentPricingVersion
-        else { return CostCache() }
+              decoded.version == version
+        else { return CostCache(version: version) }
         return decoded
     }
 

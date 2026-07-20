@@ -9,14 +9,15 @@
 /* Begin PBXBuildFile section */
 		165537AEABCB033E829853EA /* ClaudeBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5293526F91B53326FAAF6B5 /* ClaudeBarApp.swift */; };
 		2F2FFF2150570CB6E1DECCCB /* CostScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC9AD88B82AC5CEC3672AB5 /* CostScanner.swift */; };
-		558CD7D3D3E9368292E25611 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = E389EF73BF226A5B46A7D42A /* Models.swift */; };
 		4A1B2C3D4E5F60718293A4B5 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2C3D4E5F60718293A4B5C6 /* KeychainStore.swift */; };
+		558CD7D3D3E9368292E25611 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = E389EF73BF226A5B46A7D42A /* Models.swift */; };
 		6C3D4E5F60718293A4B5C6D7 /* AnthropicAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D4E5F60718293A4B5C6D7E8 /* AnthropicAPI.swift */; };
 		8E5F60718293A4B5C6D7E8F9 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F60718293A4B5C6D7E8F90A /* AccountManager.swift */; };
 		AA35BC66FACAFAF684F426D9 /* IconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 285790D7C7E97AC740DBBF51 /* IconRenderer.swift */; };
+		AB10203040506070809010A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AB10203040506070809010A2 /* Sparkle */; };
 		B7570350966327BD6ACD8B67 /* UsageCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF7ABDDDCD6098692FD940E4 /* UsageCardView.swift */; };
 		B9739EFA1F1557CADAFD84FE /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3FD5A6CF390B4AC977EB9ED /* StatusItemController.swift */; };
-		AB10203040506070809010A1 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AB10203040506070809010A2 /* Sparkle */; };
+		C1D2E3F405162738495A6B7C /* PricingTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2E3F405162738495A6B7C8D /* PricingTable.swift */; };
 		DCD92DAF6BED1377B7DFD1BA /* Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C6DCEB5BB23BA7D1AC95F4 /* Formatting.swift */; };
 /* End PBXBuildFile section */
 
@@ -24,15 +25,27 @@
 		1AC9AD88B82AC5CEC3672AB5 /* CostScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostScanner.swift; sourceTree = "<group>"; };
 		285790D7C7E97AC740DBBF51 /* IconRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconRenderer.swift; sourceTree = "<group>"; };
 		5B2C3D4E5F60718293A4B5C6 /* KeychainStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		70C6DCEB5BB23BA7D1AC95F4 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		7D4E5F60718293A4B5C6D7E8 /* AnthropicAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicAPI.swift; sourceTree = "<group>"; };
 		9F60718293A4B5C6D7E8F90A /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountManager.swift; sourceTree = "<group>"; };
-		70C6DCEB5BB23BA7D1AC95F4 /* Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatting.swift; sourceTree = "<group>"; };
 		B5293526F91B53326FAAF6B5 /* ClaudeBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeBarApp.swift; sourceTree = "<group>"; };
 		BF7ABDDDCD6098692FD940E4 /* UsageCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardView.swift; sourceTree = "<group>"; };
 		CC6F48A4AF790020100A205D /* ClaudeBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClaudeBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2E3F405162738495A6B7C8D /* PricingTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PricingTable.swift; sourceTree = "<group>"; };
 		E389EF73BF226A5B46A7D42A /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		E3FD5A6CF390B4AC977EB9ED /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AB10203040506070809010A3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB10203040506070809010A1 /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		41556B7495FE48059E8A346C /* Products */ = {
@@ -54,6 +67,7 @@
 				285790D7C7E97AC740DBBF51 /* IconRenderer.swift */,
 				5B2C3D4E5F60718293A4B5C6 /* KeychainStore.swift */,
 				E389EF73BF226A5B46A7D42A /* Models.swift */,
+				D2E3F405162738495A6B7C8D /* PricingTable.swift */,
 				E3FD5A6CF390B4AC977EB9ED /* StatusItemController.swift */,
 				BF7ABDDDCD6098692FD940E4 /* UsageCardView.swift */,
 			);
@@ -97,7 +111,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2640;
+				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					63DE0F2C7D945007D1D364EC = {
 						ProvisioningStyle = Automatic;
@@ -113,11 +127,11 @@
 			);
 			mainGroup = D8FCABBFB54A4EE1B4A360FF;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
-			productRefGroup = 41556B7495FE48059E8A346C /* Products */;
 			packageReferences = (
 				AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */,
 			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 41556B7495FE48059E8A346C /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -125,36 +139,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		AB10203040506070809010A3 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				AB10203040506070809010A1 /* Sparkle in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sparkle-project/Sparkle";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.6.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		AB10203040506070809010A2 /* Sparkle */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */;
-			productName = Sparkle;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		FD19FF3FC0F75EA711755640 /* Sources */ = {
@@ -166,6 +150,7 @@
 				DCD92DAF6BED1377B7DFD1BA /* Formatting.swift in Sources */,
 				AA35BC66FACAFAF684F426D9 /* IconRenderer.swift in Sources */,
 				558CD7D3D3E9368292E25611 /* Models.swift in Sources */,
+				C1D2E3F405162738495A6B7C /* PricingTable.swift in Sources */,
 				B9739EFA1F1557CADAFD84FE /* StatusItemController.swift in Sources */,
 				B7570350966327BD6ACD8B67 /* UsageCardView.swift in Sources */,
 				4A1B2C3D4E5F60718293A4B5 /* KeychainStore.swift in Sources */,
@@ -265,6 +250,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -332,6 +318,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -410,6 +397,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.6.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AB10203040506070809010A2 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AB10203040506070809010A0 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 19EA1BF1C305A0496DC246B7 /* Project object */;
 }

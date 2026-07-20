@@ -110,6 +110,12 @@ struct UsageCardView: View {
                 Text("Last 30 days: \(Formatting.formatCost(cost.last30DaysCostUSD)) \u{00B7} \(Formatting.formatTokens(cost.last30DaysTokens)) tokens")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
+                if !cost.unpricedModels.isEmpty {
+                    Text("Totals exclude \(cost.unpricedModels.joined(separator: ", ")) \u{2014} no published rates yet")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         } else if let progress = self.scanProgress, !progress.isComplete {
             VStack(alignment: .leading, spacing: 4) {

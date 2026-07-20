@@ -13,6 +13,9 @@ struct CostSnapshot: Sendable, Codable {
     let todayTokens: Int
     let last30DaysCostUSD: Double
     let last30DaysTokens: Int
+    /// Models in the window ClaudeBar had no rates for. Their tokens are in the
+    /// totals above but their cost is not, so the figures understate by their share.
+    let unpricedModels: [String]
 }
 
 /// One managed Anthropic account. `id` is the account UUID from the OAuth profile.

@@ -125,6 +125,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func runCostScan() async {
+        // Costs come entirely from the fetched rate table. Without it, leave the
+        // last known figures up rather than reporting everything at zero; the next
+        // poll retries, and PricingStore backs the fetch off on its own.
+        guard let pricing = await PricingStore.shared.current() else { return }
+
         let progressTask = Task { [weak self] in
             for await progress in CostScanner.shared.progressStream {
                 await MainActor.run {
@@ -135,7 +140,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             }
         }
 
-        let cost = await Task.detached { CostScanner.shared.scan() }.value
+        var cost = await Task.detached { CostScanner.shared.scan(pricing: pricing) }.value
+        // A Claude model we can't price usually just means the feed has moved on
+        // since we last read it, so pull it again and re-total against the newer
+        // rates. A third-party model routed through the CLI never will appear in it,
+        // so it isn't worth a request.
+        if cost.unpricedModels.contains(where: { $0.hasPrefix("claude-") }),
+           let refreshed = await PricingStore.shared.refetchForUnknownModel(),
+           refreshed.version != pricing.version
+        {
+            cost = await Task.detached { CostScanner.shared.scan(pricing: refreshed) }.value
+        }
         progressTask.cancel()
         self.scanProgress = nil
         self.lastCostScanAt = Date()
