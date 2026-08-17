@@ -13,6 +13,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private var isRefreshing = false
     private var lastCostScanAt: Date?
     private let onCheckForUpdates: (() -> Void)?
+    private let hotKeys = HotKeyManager()
+    private var menuIsOpen = false
 
     private static let costScanInterval: TimeInterval = 15 * 60
 
@@ -23,10 +25,21 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         super.init()
         self.menu.delegate = self
         self.statusItem.menu = self.menu
+        // Key equivalents only match *enabled* items, and AppKit's auto-enabling has
+        // nothing to validate on an item whose custom view supplies the whole UI.
+        self.menu.autoenablesItems = false
 
         self.setIcon(sessionUsed: nil, weeklyUsed: nil, stale: true)
         self.rebuildMenu()
         self.startPolling()
+
+        self.hotKeys.onFire = { [weak self] in self?.togglePanel() }
+        if let saved = HotKeyManager.saved {
+            // A combo the OS now refuses (a newly conflicting app, or Sequoia's
+            // modifier rule after an upgrade) leaves the shortcut inert; Settings
+            // reports the reason when the user next records one.
+            try? self.hotKeys.register(saved)
+        }
     }
 
     private func rebuildMenu() {
@@ -45,6 +58,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             onRemove: { [weak self] accountUuid, email in
                 Task { await self?.confirmAndRemove(accountUuid: accountUuid, email: email) }
             },
+            onOpenSettings: { [weak self] in self?.openSettings() },
             onCheckForUpdates: self.onCheckForUpdates,
             onQuit: { NSApplication.shared.terminate(nil) })
         let hostingView = NSHostingView(rootView: cardView)
@@ -52,6 +66,17 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         let menuItem = NSMenuItem()
         menuItem.view = hostingView
+        menuItem.isEnabled = true
+        // How the panel closes from the keyboard. NSMenu matches key equivalents
+        // against its items from inside the tracking loop, and selecting an item
+        // dismisses the menu — so the action itself has nothing to do. The hosting
+        // view covers the row, so the equivalent never renders.
+        if let combo = self.hotKeys.combo {
+            menuItem.keyEquivalent = combo.keyEquivalent
+            menuItem.keyEquivalentModifierMask = combo.keyEquivalentModifierMask
+            menuItem.target = self
+            menuItem.action = #selector(self.dismissViaKeyEquivalent)
+        }
         self.menu.addItem(menuItem)
     }
 
@@ -217,11 +242,59 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     nonisolated func menuWillOpen(_ menu: NSMenu) {
         MainActor.assumeIsolated {
+            self.menuIsOpen = true
+            self.hotKeys.suspend()
+
             self.rebuildMenu()
             Task { [weak self] in
                 await AccountManager.shared.reconcile()
                 await self?.refreshSnapshot()
             }
+        }
+    }
+
+    nonisolated func menuDidClose(_ menu: NSMenu) {
+        MainActor.assumeIsolated {
+            self.menuIsOpen = false
+            self.hotKeys.resume()
+        }
+    }
+
+    // MARK: - Hotkey
+
+    private func togglePanel() {
+        if self.menuIsOpen {
+            self.menu.cancelTracking()
+        } else {
+            self.statusItem.button?.performClick(nil)
+        }
+    }
+
+    /// Reaching this method means the menu already dismissed itself by selecting the
+    /// item; the key equivalent's whole job is that dismissal.
+    @objc private func dismissViaKeyEquivalent() {}
+
+    private func openSettings() {
+        SettingsWindowController.shared.show { [weak self] combo in
+            self?.applyHotKey(combo)
+        }
+    }
+
+    /// Returns a message for Settings to show inline, or nil when the combo took.
+    private func applyHotKey(_ combo: KeyCombo?) -> String? {
+        guard let combo else {
+            self.hotKeys.unregister()
+            HotKeyManager.saved = nil
+            return nil
+        }
+        do {
+            try self.hotKeys.register(combo)
+            HotKeyManager.saved = combo
+            return nil
+        } catch let error as HotKeyManager.RegistrationError {
+            return error.description
+        } catch {
+            return "Couldn't register that shortcut."
         }
     }
 

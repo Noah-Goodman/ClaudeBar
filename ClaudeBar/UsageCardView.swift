@@ -11,6 +11,7 @@ struct UsageCardView: View {
     let onAddAccount: () -> Void
     let onCancelAddAccount: () -> Void
     let onRemove: (String, String) -> Void
+    let onOpenSettings: () -> Void
     let onCheckForUpdates: (() -> Void)?
     let onQuit: () -> Void
 
@@ -59,6 +60,14 @@ struct UsageCardView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                Button {
+                    self.onOpenSettings()
+                } label: {
+                    Image(systemName: "gear")
+                }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
             if let updatedAt = self.snapshot?.updatedAt {
                 Text("Updated \(Formatting.timeAgo(from: updatedAt))")
