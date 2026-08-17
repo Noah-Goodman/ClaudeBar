@@ -44,7 +44,7 @@ struct UsageCardView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack {
+            HStack(spacing: 2) {
                 Text("Claude")
                     .font(.system(size: 14, weight: .bold))
                 Spacer()
@@ -58,16 +58,17 @@ struct UsageCardView: View {
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverBackgroundIcon)
                 }
                 Button {
                     self.onOpenSettings()
                 } label: {
                     Image(systemName: "gear")
                 }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverBackgroundIcon)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
+//                    .padding(.trailing, -4)
             }
             if let updatedAt = self.snapshot?.updatedAt {
                 Text("Updated \(Formatting.timeAgo(from: updatedAt))")
@@ -173,15 +174,15 @@ struct UsageCardView: View {
                 .foregroundStyle(.secondary)
                 Spacer()
                 Button("Add Account") { self.onAddAccount() }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverBackground)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
                     .disabled(self.snapshot?.isPendingAdd == true)
                 Button("Quit") { self.onQuit() }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverBackground)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                    .padding(.leading, 10)
+                    .padding(.trailing, -6)
             }
             if let onCheckForUpdates = self.onCheckForUpdates {
                 HStack {
@@ -190,9 +191,10 @@ struct UsageCardView: View {
                         .foregroundStyle(.tertiary)
                     Spacer()
                     Button("Check for Updates") { onCheckForUpdates() }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.hoverBackground)
                         .font(.system(size: 10))
                         .foregroundStyle(.tertiary)
+                        .padding(.trailing, -6)
                 }
             }
         }
@@ -253,7 +255,7 @@ struct AccountRow: View {
                                 .font(.system(size: 11))
                                 .foregroundStyle(.tertiary)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.hoverBackgroundIcon)
                         .help("Remove account")
                     }
                     Button("Switch") { self.onSwitch() }
@@ -386,9 +388,10 @@ struct PendingAddRow: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Button("Cancel") { self.onCancel() }
-                .buttonStyle(.plain)
+                .buttonStyle(.hoverBackground)
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(.secondary)
+                .padding(.leading, -6)
         }
     }
 }

@@ -133,7 +133,7 @@ struct ShortcutRecorder: View {
             }
             if self.combo != nil, !self.isRecording {
                 Button("Clear") { self.clear() }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.hoverBackground)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }

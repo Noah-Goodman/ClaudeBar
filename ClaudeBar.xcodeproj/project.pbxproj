@@ -22,6 +22,7 @@
 		F1A2B3C4D5E6071829300001 /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6071829300002 /* HotKeyManager.swift */; };
 		F1A2B3C4D5E6071829300003 /* ShortcutRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6071829300004 /* ShortcutRecorder.swift */; };
 		F1A2B3C4D5E6071829300005 /* SettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6071829300006 /* SettingsWindow.swift */; };
+		F1A2B3C4D5E6071829300007 /* HoverBackgroundButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E6071829300008 /* HoverBackgroundButtonStyle.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -40,6 +41,7 @@
 		F1A2B3C4D5E6071829300004 /* ShortcutRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorder.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E6071829300006 /* SettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindow.swift; sourceTree = "<group>"; };
 		E3FD5A6CF390B4AC977EB9ED /* StatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusItemController.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E6071829300008 /* HoverBackgroundButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoverBackgroundButtonStyle.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,9 +80,26 @@
 				F1A2B3C4D5E6071829300006 /* SettingsWindow.swift */,
 				F1A2B3C4D5E6071829300004 /* ShortcutRecorder.swift */,
 				E3FD5A6CF390B4AC977EB9ED /* StatusItemController.swift */,
+				F1A2B3C4D5E607182930000A /* Styles */,
 				BF7ABDDDCD6098692FD940E4 /* UsageCardView.swift */,
 			);
 			path = ClaudeBar;
+			sourceTree = "<group>";
+		};
+		F1A2B3C4D5E607182930000A /* Styles */ = {
+			isa = PBXGroup;
+			children = (
+				F1A2B3C4D5E607182930000B /* ButtonStyles */,
+			);
+			path = Styles;
+			sourceTree = "<group>";
+		};
+		F1A2B3C4D5E607182930000B /* ButtonStyles */ = {
+			isa = PBXGroup;
+			children = (
+				F1A2B3C4D5E6071829300008 /* HoverBackgroundButtonStyle.swift */,
+			);
+			path = ButtonStyles;
 			sourceTree = "<group>";
 		};
 		D8FCABBFB54A4EE1B4A360FF = {
@@ -168,6 +187,7 @@
 				F1A2B3C4D5E6071829300001 /* HotKeyManager.swift in Sources */,
 				F1A2B3C4D5E6071829300003 /* ShortcutRecorder.swift in Sources */,
 				F1A2B3C4D5E6071829300005 /* SettingsWindow.swift in Sources */,
+				F1A2B3C4D5E6071829300007 /* HoverBackgroundButtonStyle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
