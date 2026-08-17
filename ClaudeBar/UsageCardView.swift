@@ -68,7 +68,7 @@ struct UsageCardView: View {
                     .buttonStyle(.hoverBackgroundIcon)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
-//                    .padding(.trailing, -4)
+                    .padding(.trailing, -4)
             }
             if let updatedAt = self.snapshot?.updatedAt {
                 Text("Updated \(Formatting.timeAgo(from: updatedAt))")
